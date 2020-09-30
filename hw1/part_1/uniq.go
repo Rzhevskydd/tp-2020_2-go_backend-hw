@@ -62,14 +62,18 @@ func main() {
 
 	result, err := uniq.UniqUtility(text, optional)
 	if err != nil {
-		fmt.Errorf(err.Error())
+		fmt.Printf(err.Error())
 	}
 
 	out := bufio.NewWriter(output)
 	defer out.Flush()
 
-	for _, line := range result {
-		_, err = fmt.Fprintln(out, line)
+	for i, line := range result {
+		if i != len(result) - 1 {
+			_, err = fmt.Fprintln(out, line)
+		} else {
+			_, err = fmt.Fprint(out, line)
+		}
 		if err != nil {
 			panic(err.Error())
 		}

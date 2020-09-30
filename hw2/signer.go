@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -70,32 +71,29 @@ func MultiHash(in, out chan interface{}) {
 	wg := &sync.WaitGroup{}
 
 	for input := range in {
-		dataStr := fmt.Sprintf("%v", input)
+		switch dataStr := input.(type) {
+		case string:
+			wg.Add(1)
+			go func(out ch, waiter *sync.WaitGroup) {
+				defer wg.Done()
 
-		wg.Add(1)
-		go func(out ch, waiter *sync.WaitGroup) {
-			defer wg.Done()
+				c := make(chan inter)
+				for i := 0; i < 6; i++ {
+					go func(i int, c chan inter) {
+						c <- inter{i, DataSignerCrc32(strconv.FormatInt(int64(i), 10) + dataStr)}
+					}(i, c)
+				}
 
-			c := make(chan inter)
-			for i := 0; i < 6; i++ {
-				go func(i int, c chan inter) {
-					c <- inter{i, DataSignerCrc32(strconv.FormatInt(int64(i), 10) + dataStr)}
-				}(i, c)
-			}
+				hashesToConcat := make([]string, 6, 6)
+				for i := 0; i < 6; i++ {
+					chunk := <-c
+					hashesToConcat[chunk.i] = chunk.str
+				}
+				concated := strings.Join(hashesToConcat, "")
 
-			arr := [6]string{}
-			for i := 0; i < 6; i++ {
-				chunk := <-c
-				arr[chunk.i] = chunk.str
-			}
-
-			var acc string
-			for _, s := range arr {
-				acc += s
-			}
-
-			out <- acc
-		}(out, wg)
+				out <- concated
+			}(out, wg)
+		}
 	}
 	wg.Wait()
 }

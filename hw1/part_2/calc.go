@@ -39,7 +39,7 @@ func extractRightOperand(s string, left string, cutFrom int) (float64, float64, 
 	for i, char := range cutStr {
 		if char == '(' {
 			replace, closeBrace := parseBraces(cutFrom + 1, s);
-			s = strings.Replace(s, s[cutFrom + 1 : closeBrace + 1], fmt.Sprintf("%.2f", replace), 1)
+			s = strings.Replace(s, s[cutFrom + 1 : closeBrace + 1], fmt.Sprintf("%.4f", replace), 1)
 			right = s[cutFrom+1:]
 			idxToReplace = closeBrace
 			break
@@ -86,12 +86,15 @@ func evaluateExp(s string) (res float64) {
 				continue
 			}
 
-			num, err := strconv.ParseFloat(leftOperand, 64)
+			//num, err := strconv.ParseFloat(leftOperand, 64)
+			num1, num2, idxToReplace, err := extractRightOperand(s, leftOperand, i)
 			if err != nil {
 				panic(err.Error())
 			}
-			res = num - evaluateExp(s[i + 1:])
-			return res
+			//res = num - evaluateExp(s[i + 1:])
+			res = num1 - num2
+			s = strings.Replace(s, s[:idxToReplace], fmt.Sprintf("%.4f", res), 1)
+			return evaluateExp(s)
 		case '*':
 			num1, num2, idxToReplace, err := extractRightOperand(s, leftOperand, i)
 			if err != nil {
@@ -99,7 +102,7 @@ func evaluateExp(s string) (res float64) {
 			}
 
 			res = num1 * num2
-			s = strings.Replace(s, s[:idxToReplace], fmt.Sprintf("%.2f", res), 1)
+			s = strings.Replace(s, s[:idxToReplace], fmt.Sprintf("%.4f", res), 1)
 
 			return evaluateExp(s)
 
@@ -110,14 +113,14 @@ func evaluateExp(s string) (res float64) {
 			}
 
 			res = num1 / num2
-			s = strings.Replace(s, s[:idxToReplace], fmt.Sprintf("%.2f", res), 1)
+			s = strings.Replace(s, s[:idxToReplace], fmt.Sprintf("%.4f", res), 1)
 
 			return evaluateExp(s)
 
 		case '(':
 			replace, closeBrace := parseBraces(i, s);
 
-			s = strings.Replace(s, s[:closeBrace+1], fmt.Sprintf("%.2f", replace), 1)
+			s = strings.Replace(s, s[:closeBrace+1], fmt.Sprintf("%.4f", replace), 1)
 			return evaluateExp(s)
 
 		default:

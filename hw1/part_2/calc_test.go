@@ -37,6 +37,18 @@ func TestCalc(t *testing.T) {
 			input: "100/4/5",
 			result: 5,
 		},
+		{
+			input: "4-10+12",
+			result: 6,
+		},
+		{
+			input: "1/8",
+			result: 0.125,
+		},
+		{
+			input:  "(1/8)*8",
+			result: 1,
+		},
 	}
 
 	for num, test := range testCases {
