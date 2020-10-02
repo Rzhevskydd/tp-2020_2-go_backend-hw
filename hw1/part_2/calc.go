@@ -141,7 +141,7 @@ func main() {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println("Please, enter correct expression\n" +
-				"calc.go supports '*', '/', '+', '-' and '(...) operators")
+				"calc.go supports '*', '/', '+', '-' and '(parentheses)' operators")
 		}
 	}()
 
@@ -156,7 +156,8 @@ func main() {
 	}
 
 	// remove all spaces
-	expression = strings.Replace(expression, " ", "", -1)
+	expressionFields := strings.Fields(expression);
+	expression = strings.Join(expressionFields, "");
 	
 	res := evaluateExp(expression)
 	fmt.Println(res)
