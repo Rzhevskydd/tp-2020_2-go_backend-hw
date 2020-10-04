@@ -21,6 +21,13 @@ func main() {
 	flag.Parse()
 
 	args := flag.Args()
+
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
+	}()
+
 	if len(args) > 2 {
 		panic("uniq [-c | -d | -u] [-i] [-f num] [-s chars] [input_file [output_file]]")
 	}
