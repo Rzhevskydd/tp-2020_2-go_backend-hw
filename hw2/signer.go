@@ -30,10 +30,17 @@ func ExecutePipeline(tasks ...job) {
 	}
 
 	c := make(ch, 1)
-	for _, task := range tasks {
+	for i, task := range tasks {
+		if i == 0 {
+			close(c)
+		}
 		c = worker(wg, task, c)
 	}
 	wg.Wait()
+}
+
+func produceCrc32(out chan string, in chan string) {
+	out <- DataSignerCrc32(<-in)
 }
 
 func SingleHash(in, out chan interface{}) {
@@ -45,18 +52,24 @@ func SingleHash(in, out chan interface{}) {
 		wg.Add(1)
 		go func(out ch, waiter *sync.WaitGroup, mu *sync.Mutex) {
 			defer wg.Done()
-			mu.Lock()
-			md5 := DataSignerMd5(dataStr)
-			mu.Unlock()
 
-			c_md5 := make(chan string)
+			firstCrc32 := make(chan string, 1)
+			md5 := make(chan string, 1)
+			secondCrc32 := make(chan string, 1)
 
-			go func() {
-				c_md5 <- DataSignerCrc32(md5)
-			}()
 
-			out <- DataSignerCrc32(dataStr) +
-				"~" + <-c_md5
+			in := make(chan string, 1)
+			in <- dataStr
+
+			go produceCrc32(firstCrc32, in)
+			go func(c chan string) {
+				mu.Lock()
+				c <- DataSignerMd5(dataStr)
+				mu.Unlock()
+			}(md5)
+			go produceCrc32(secondCrc32, md5)
+
+			out <- <-firstCrc32 + "~" + <-secondCrc32
 		}(out, wg, mu)
 	}
 	wg.Wait()
@@ -67,6 +80,26 @@ type inter struct {
 	str string
 }
 
+func produceMultiHash(out ch, waiter *sync.WaitGroup, dataStr string) {
+	defer waiter.Done()
+
+	c := make(chan inter)
+	for i := 0; i < 6; i++ {
+		go func(i int, c chan inter) {
+			c <- inter{i, DataSignerCrc32(strconv.FormatInt(int64(i), 10) + dataStr)}
+		}(i, c)
+	}
+
+	hashesToConcat := make([]string, 6, 6)
+	for i := 0; i < 6; i++ {
+		chunk := <-c
+		hashesToConcat[chunk.i] = chunk.str
+	}
+	concated := strings.Join(hashesToConcat, "")
+
+	out <- concated
+}
+
 func MultiHash(in, out chan interface{}) {
 	wg := &sync.WaitGroup{}
 
@@ -74,25 +107,7 @@ func MultiHash(in, out chan interface{}) {
 		switch dataStr := input.(type) {
 		case string:
 			wg.Add(1)
-			go func(out ch, waiter *sync.WaitGroup) {
-				defer wg.Done()
-
-				c := make(chan inter)
-				for i := 0; i < 6; i++ {
-					go func(i int, c chan inter) {
-						c <- inter{i, DataSignerCrc32(strconv.FormatInt(int64(i), 10) + dataStr)}
-					}(i, c)
-				}
-
-				hashesToConcat := make([]string, 6, 6)
-				for i := 0; i < 6; i++ {
-					chunk := <-c
-					hashesToConcat[chunk.i] = chunk.str
-				}
-				concated := strings.Join(hashesToConcat, "")
-
-				out <- concated
-			}(out, wg)
+			go produceMultiHash(out, wg, dataStr)
 		}
 	}
 	wg.Wait()
@@ -105,12 +120,7 @@ func CombineResults(in, out chan interface{}) {
 		lst = append(lst, hash)
 	}
 	sort.Strings(lst)
-	var res string
-	for idx, el := range lst {
-		res += el
-		if idx != len(lst)-1 {
-			res += "_"
-		}
-	}
+
+	res := strings.Join(lst, "_")
 	out <- res
 }
