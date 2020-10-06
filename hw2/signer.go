@@ -30,10 +30,8 @@ func ExecutePipeline(tasks ...job) {
 	}
 
 	c := make(ch, 1)
-	for i, task := range tasks {
-		if i == 0 {
-			close(c)
-		}
+	close(c)
+	for _, task := range tasks {
 		c = worker(wg, task, c)
 	}
 	wg.Wait()
@@ -41,6 +39,12 @@ func ExecutePipeline(tasks ...job) {
 
 func produceCrc32(out chan string, in chan string) {
 	out <- DataSignerCrc32(<-in)
+}
+
+func produceMd5(c chan string, dataStr string, mu *sync.Mutex) {
+	mu.Lock()
+	c <- DataSignerMd5(dataStr)
+	mu.Unlock()
 }
 
 func SingleHash(in, out chan interface{}) {
@@ -62,11 +66,7 @@ func SingleHash(in, out chan interface{}) {
 			in <- dataStr
 
 			go produceCrc32(firstCrc32, in)
-			go func(c chan string) {
-				mu.Lock()
-				c <- DataSignerMd5(dataStr)
-				mu.Unlock()
-			}(md5)
+			go produceMd5(md5, dataStr, mu)
 			go produceCrc32(secondCrc32, md5)
 
 			out <- <-firstCrc32 + "~" + <-secondCrc32
