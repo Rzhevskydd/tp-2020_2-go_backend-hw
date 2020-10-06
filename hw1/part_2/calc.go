@@ -8,6 +8,18 @@ import (
 	"strings"
 )
 
+func getLastIndexOfNumber(str string) int {
+	for i, char := range str {
+		symb := fmt.Sprintf("%c", char)
+		if symb == "." {
+			continue
+		}
+		if !(symb >= "0" && symb <= "9") {
+			return i
+		}
+	}
+	return len(str)
+}
 
 func parseBraces(startBrace int, s string) (float64, int) {
 	var closeBrace int
@@ -38,7 +50,7 @@ func extractRightOperand(s string, left string, cutFrom int) (float64, float64, 
 	cutStr := s[cutFrom+ 1:]
 	for i, char := range cutStr {
 		if char == '(' {
-			replace, closeBrace := parseBraces(cutFrom + 1, s);
+			replace, closeBrace := parseBraces(cutFrom + 1, s)
 			s = strings.Replace(s, s[cutFrom + 1 : closeBrace + 1], fmt.Sprintf("%.4f", replace), 1)
 			right = s[cutFrom+1:]
 			idxToReplace = closeBrace
@@ -60,7 +72,8 @@ func extractRightOperand(s string, left string, cutFrom int) (float64, float64, 
 		return 0, 0, 0, err
 	}
 
-	num2, err := strconv.ParseFloat(right, 64)
+	rightOperand := right[: getLastIndexOfNumber(right)]
+	num2, err := strconv.ParseFloat(rightOperand, 64)
 	if err != nil {
 		return 0, 0, 0, err
 	}
@@ -86,15 +99,12 @@ func evaluateExp(s string) (res float64) {
 				continue
 			}
 
-			//num, err := strconv.ParseFloat(leftOperand, 64)
-			num1, num2, idxToReplace, err := extractRightOperand(s, leftOperand, i)
+			num, err := strconv.ParseFloat(leftOperand, 64)
 			if err != nil {
 				panic(err.Error())
 			}
-			//res = num - evaluateExp(s[i + 1:])
-			res = num1 - num2
-			s = strings.Replace(s, s[:idxToReplace], fmt.Sprintf("%.4f", res), 1)
-			return evaluateExp(s)
+			res = num + evaluateExp(s[i:])
+			return res
 		case '*':
 			num1, num2, idxToReplace, err := extractRightOperand(s, leftOperand, i)
 			if err != nil {
@@ -118,9 +128,9 @@ func evaluateExp(s string) (res float64) {
 			return evaluateExp(s)
 
 		case '(':
-			replace, closeBrace := parseBraces(i, s);
+			replace, closeBrace := parseBraces(i, s)
 
-			s = strings.Replace(s, s[:closeBrace+1], fmt.Sprintf("%.4f", replace), 1)
+			s = strings.Replace(s, s[i : closeBrace+1], fmt.Sprintf("%.4f", replace), 1)
 			return evaluateExp(s)
 
 		default:

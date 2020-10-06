@@ -49,6 +49,18 @@ func TestCalc(t *testing.T) {
 			input:  "(1/8)*8",
 			result: 1,
 		},
+		{
+			input: "5-2*2",
+			result: 1,
+		},
+		{
+			input: "2-2/2",
+			result: 1,
+		},
+		{
+			input: "((14-9)*((27/3)/3)-(64/32))*(1+6/2)",
+			result: 52,
+		},
 	}
 
 	for num, test := range testCases {
